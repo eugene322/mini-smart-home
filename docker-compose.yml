@@ -1,0 +1,9 @@
+services:
+  telegram_bot:
+    container_name: telegram_bot
+    build: ./
+    volumes:
+      - ./src:/src:rw
+      - ./.env:/src/core/.env
+    environment:
+      PROCESS: DEV_BOT
