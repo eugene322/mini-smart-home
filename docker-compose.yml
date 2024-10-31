@@ -1,9 +1,61 @@
 services:
-  telegram_bot:
-    container_name: telegram_bot
+  bot:
+    container_name: bot
     build: ./
     volumes:
       - ./src:/src:rw
       - ./.env:/src/core/.env
     environment:
-      PROCESS: DEV_BOT
+      PROCESS: BOT
+
+  worker:
+    container_name: worker
+    build: ./
+    volumes:
+      - ./src:/src:rw
+      - ./.env:/src/core/.env
+    environment:
+      PROCESS: WORKER
+    depends_on:
+      - "redis"
+
+  mqtt:
+    container_name: mqtt
+    image: eclipse-mosquitto
+    ports:
+      - 1883:1883
+      - 9001:9001
+    volumes:
+      - ./mqtt/config:/mosquitto/config
+      - mqtt-data:/mosquitto/data
+      - mqtt-log:/mosquitto/log
+
+  redis:
+    container_name: redis
+    image: redis
+    env_file:
+      - .env
+    environment:
+        REDIS_PASSWORD: ${MINI_HOME_REDIS_PASSWORD}
+        REDIS_PORT: ${MINI_HOME_REDIS_PORT}
+    command: [
+        "redis-server",
+        "/usr/local/etc/redis/redis.conf",
+        "--requirepass ${MINI_HOME_REDIS_PASSWORD}"
+    ]
+    ports:
+        - 6379:6379
+    volumes:
+        - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+        - redis-data:/root/redis
+
+volumes:
+    mqtt-data:
+        driver: local
+        name: mqtt-data
+    mqtt-log:
+        driver: local
+        name: mqtt-log
+    redis-data:
+        driver: local
+        name: redis-data

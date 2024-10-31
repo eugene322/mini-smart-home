@@ -2,6 +2,7 @@ FROM python:3.12.3-alpine
 
 ENV PYTHONUNBUFFERED=1 COLUMNS=200 \
     TZ=Asia/Almaty \
+    PYTHONPATH='$PYTHONPATH:/src' \
     # Poetry's configuration:
     POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_CREATE=false \

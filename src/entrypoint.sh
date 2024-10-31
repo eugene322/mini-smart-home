@@ -21,14 +21,14 @@ case "$PROCESS" in
 "LINT")
     mypy . && flake8 . && bandit -r . --exclude tests
     ;;
-"DEV_BOT")
-    python main.py
-    ;;
 "TEST")
     pytest -v --cov .
     ;;
 "BOT")
-    python main.py
+    python core/run_bot.py
+    ;;
+"WORKER")
+    python core/worker.py
     ;;
 *)
     echo "NO PROCESS SPECIFIED!>_<"

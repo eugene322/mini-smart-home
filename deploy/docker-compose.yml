@@ -1,0 +1,27 @@
+services:
+    mqtt:
+        container_name: mosquitto
+        image: eclipse-mosquitto
+        restart: unless-stopped
+        ports:
+          - 1883:1883
+          - 9001:9001
+        volumes:
+          - ./mosquitto:/etc/mosquitto
+          - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+    zigbee2mqtt:
+        container_name: zigbee2mqtt
+        image: koenkk/zigbee2mqtt
+        restart: unless-stopped
+        volumes:
+            - ./data:/app/data
+            - /run/udev:/run/udev:ro
+        ports:
+            - 8080:8080
+        environment:
+            - TZ=Asia/Almaty
+        devices:
+            - /dev/serial/by-id/usb-ITEAD_SONOFF_Zigbee_3.0_USB_Dongle_Plus_V2_20240218094024-if00:/dev/ttyACM0
+        depends_on:
+            - mqtt
