@@ -27,6 +27,9 @@ case "$PROCESS" in
 "BOT")
     python core/run_bot.py
     ;;
+"ZIGBEE")
+    python core/run_zigbee.py
+    ;;
 "WORKER")
     python core/worker.py
     ;;
