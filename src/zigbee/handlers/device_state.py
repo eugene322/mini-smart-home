@@ -1,5 +1,8 @@
-from typing import Dict
+from typing import Dict, Any
 
-def on_device_state(name: str, payload: Dict) -> None:
+from services.zigbee_service import ZigbeeService, DeviceState
+
+
+def on_device_state(service: ZigbeeService, name: str, device_state: DeviceState, dep: Dict[str, Any]) -> None:
     print(name)
-    print(payload)
+    print(device_state)

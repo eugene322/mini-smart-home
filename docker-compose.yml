@@ -1,6 +1,7 @@
+name: mini-smart-home
+
 services:
   bot:
-    container_name: bot
     build: ./
     volumes:
       - ./src:/src:rw
@@ -9,7 +10,6 @@ services:
       PROCESS: BOT
 
   zigbee:
-    container_name: zigbee
     build: ./
     volumes:
       - ./src:/src:rw
@@ -23,7 +23,6 @@ services:
       - "mqtt"
 
   worker:
-    container_name: worker
     build: ./
     volumes:
       - ./src:/src:rw
@@ -34,7 +33,6 @@ services:
       - "redis"
 
   mqtt:
-    container_name: mqtt
     image: eclipse-mosquitto
     ports:
       - 1884:1883
@@ -45,7 +43,6 @@ services:
       - mqtt-log:/mosquitto/log
 
   redis:
-    container_name: redis
     image: redis
     env_file:
       - .env

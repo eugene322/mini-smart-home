@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import re
 import signal
@@ -7,10 +6,12 @@ import uuid
 from asyncio import Event
 from collections.abc import Callable
 from enum import Enum
-from typing import Optional, Dict
+from typing import Optional, Dict, Any, List
 
 from gmqtt import Client as MQTTClient
 from gmqtt import Subscription
+from pydantic import BaseModel, ConfigDict
+from pydantic_core import from_json
 
 logger = logging.getLogger(__name__)
 
@@ -20,18 +21,35 @@ class ZigbeeEvent(Enum):
     DEVICE_STATE_CHANGED = 2
 
 
+class DevicePayload(BaseModel):
+    friendly_name: str
+
+    model_config = ConfigDict(
+        extra="allow"
+    )
+
+class DeviceState(BaseModel):
+    model_config = ConfigDict(
+        extra="allow"
+    )
+
 class ZigbeeService:
     ON_DEVICES = "zigbee2mqtt/bridge/devices/#"
     ON_DEVICE = "zigbee2mqtt/{friendly_name}/#"
+    ON_DEVICE_RE = r"zigbee2mqtt/([\d|\w|\-|_]+)"
 
     def __init__(self):
         self._stop_signal: Optional[Event] = None
         self._client: Optional[MQTTClient] = None
         self._handlers: Dict[ZigbeeEvent, Callable] = {}
         self._subscriptions: Dict[str, Subscription] = {}
+        self._dep: Dict[str, Any] = {}
 
     def register_handler(self, event_type: ZigbeeEvent, handler: Callable) -> None:
         self._handlers[event_type] = handler
+
+    def register_dep(self, name: str, dep: Any) -> None:
+        self._dep[name] = dep
 
     def _on_connect(self, client, flags, rc, properties) -> None:
         logger.info(f"On connect: {flags} {rc} {properties}")
@@ -48,39 +66,48 @@ class ZigbeeService:
 
     def _on_message(self, client, topic, payload, qos, properties) -> None:
         logger.info(f"On message {topic}: {payload}: {qos}: {properties}")
-        json_payload = json.loads(payload)
+        payload = from_json(payload)
         try:
             if topic == self.ON_DEVICES[:-2]:
-                self._subscribe_on_devices(client, json_payload)
                 handler = self._handlers.get(ZigbeeEvent.DEVICES_UPDATED)
+                device_payloads = [DevicePayload.model_validate(p) for p in payload]
                 if handler:
-                    handler(json_payload)
-            elif topic == self.ON_DEVICE[:-2]:
-                device_name = re.findall(r"zigbee2mqtt/(\w*)/", topic)
+                    handler(self, device_payloads, self._dep)
+            elif re.match(self.ON_DEVICE_RE, topic):
+                device_name = re.findall(self.ON_DEVICE_RE, topic)
                 handler = self._handlers.get(ZigbeeEvent.DEVICE_STATE_CHANGED)
+                device_state = DeviceState.model_validate(payload)
                 if handler:
-                    handler(device_name, json_payload)
+                    handler(self, device_name, device_state, self._dep)
+            else:
+                logger.error(f"Unknown topic: {topic}")
         except Exception as e:
             logger.error(e)
 
-    def _subscribe_on_devices(self, client, devices_payload):
-        new_devices_subscription = {}
-        for device in devices_payload:
-            device_topic = self.ON_DEVICE.format(friendly_name=device["friendly_name"])
-            if device_topic in self._subscriptions:
-                # Skip subscribed devices
-                continue
-            if device["type"] in ("Coordinator",):
-                # Skip Coordinator
-                continue
-            new_devices_subscription[device_topic] = Subscription(
-                topic=device_topic,
-                qos=1
-            )
+    def subscribe_on_device(self, friendly_name: str):
+        device_topic = self.ON_DEVICE.format(friendly_name=friendly_name)
+        if device_topic in self._subscriptions:
+            # Skip subscribed devices
+            logger.warning(f"Skipped: {friendly_name}")
+            return None
 
-        self._subscriptions.update(new_devices_subscription)
-        client.subscribe(list(new_devices_subscription.values()))
-        logger.info(f"Subscribed on new: {new_devices_subscription}")
+        self._subscriptions[device_topic] = Subscription(topic=device_topic, qos=1)
+        self._client.subscribe(self._subscriptions[device_topic])
+        logger.info(f"Subscribed on new: {device_topic}")
+
+    def unsubscribe_from_device(self, friendly_name: str):
+        device_topic = self.ON_DEVICE.format(friendly_name=friendly_name)
+        subscription = self._subscriptions.pop(device_topic)
+        if subscription:
+            # Skip subscribed devices
+            logger.warning(f"Skipped: {friendly_name}")
+            return None
+
+        self._client.unsubscribe(subscription.topic)
+        logger.info(f"Unsubscribe from: {device_topic}")
+
+    def subscriptions(self) -> List[str]:
+        return list(self._subscriptions.keys())
 
     async def start_pooling(self, host: str, port: int, username: str, password: str):
         self._stop_signal = Event()
