@@ -21,6 +21,7 @@ services:
     depends_on:
       - "redis"
       - "mqtt"
+      - "worker"
 
   worker:
     build: ./

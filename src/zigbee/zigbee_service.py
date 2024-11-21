@@ -100,7 +100,7 @@ class ZigbeeService:
         subscription = self._subscriptions.pop(device_topic)
         if subscription:
             # Skip subscribed devices
-            logger.warning(f"Skipped: {friendly_name}")
+            logger.error(f"Skipped: {friendly_name}")
             return None
 
         self._client.unsubscribe(subscription.topic)

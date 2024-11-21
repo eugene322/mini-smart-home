@@ -5,9 +5,9 @@ import sys
 from redis import Redis
 
 from core.settings import Settings
-from services.queues_service import QueuesService
+from jobs.queues_service import QueuesService
 from services.storage_service import StorageService
-from services.zigbee_service import ZigbeeService, ZigbeeEvent
+from zigbee.zigbee_service import ZigbeeService, ZigbeeEvent
 from zigbee.constants import QUEUES_SERVICE, STORAGE_SERVICE
 from zigbee.handlers.device_state import on_device_state
 from zigbee.handlers.devices import on_devices
@@ -27,16 +27,15 @@ async def main():
             )
         )
     )
-    service.register_dep(
-        STORAGE_SERVICE,
-        StorageService(
-            redis=Redis(
-                host=settings.redis_host,
-                port=settings.redis_port,
-                password=settings.redis_password
-            )
+    storage = StorageService(
+        redis=Redis(
+            host=settings.redis_host,
+            port=settings.redis_port,
+            password=settings.redis_password
         )
     )
+    storage.set_devices_data([])
+    service.register_dep(STORAGE_SERVICE, storage)
 
     service.register_handler(ZigbeeEvent.DEVICES_UPDATED, on_devices)
     service.register_handler(ZigbeeEvent.DEVICE_STATE_CHANGED, on_device_state)
