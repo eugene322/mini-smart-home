@@ -7,15 +7,15 @@ from redis import Redis
 from core.settings import Settings
 from jobs.queues_service import QueuesService
 from services.storage_service import StorageService
-from zigbee.zigbee_service import ZigbeeService, ZigbeeEvent
+from zigbee.models import ZigbeeEvent
+from zigbee.zigbee_worker import ZigbeeWorker
 from zigbee.constants import QUEUES_SERVICE, STORAGE_SERVICE
-from zigbee.handlers.device_state import on_device_state
-from zigbee.handlers.devices import on_devices
+from zigbee.handlers import on_device_state, on_devices
 
 
 async def main():
     settings = Settings()
-    service = ZigbeeService()
+    service = ZigbeeWorker()
 
     service.register_dep(
         QUEUES_SERVICE,

@@ -1,11 +1,22 @@
 from typing import Dict, Any, List
 
+from jobs.devices import device_state_changed
+from jobs.queues_service import QueuesService
 from services.storage_service import StorageService
-from zigbee.zigbee_service import ZigbeeService, DevicePayload
-from zigbee.constants import STORAGE_SERVICE
+from zigbee.models import DeviceState, DevicePayload
+from zigbee.zigbee_worker import ZigbeeWorker
+from zigbee.constants import QUEUES_SERVICE, STORAGE_SERVICE
 
 
-def on_devices(service: ZigbeeService, devices: List[DevicePayload], dep: Dict[str, Any]) -> None:
+def on_device_state(service: ZigbeeWorker, name: str, device_state: DeviceState, dep: Dict[str, Any]) -> None:
+    print(name)
+    print(device_state)
+
+    qs: QueuesService = dep[QUEUES_SERVICE]
+    qs.default(device_state_changed, name, device_state.model_dump(mode="json"))
+
+
+def on_devices(service: ZigbeeWorker, devices: List[DevicePayload], dep: Dict[str, Any]) -> None:
     ss: StorageService = dep[STORAGE_SERVICE]
 
     old_devices = [DevicePayload.model_validate(d) for d in ss.get_devices_data()]
